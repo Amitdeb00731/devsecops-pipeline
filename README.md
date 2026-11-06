@@ -1,6 +1,6 @@
 # DevSecOps Pipeline: making secure delivery a control, not a hope
 
-> **Status: planned.** The third build in the portfolio, after the
+> **Status: in build, Phase 1 complete.** The third build in the portfolio, after the
 > [AD SecOps lab](https://github.com/Amitdeb00731/secops-ad-lab) and the cloud
 > identity labs on [Azure](https://github.com/Amitdeb00731/cloud-iam-lab) and
 > AWS. The plan and the six phase guides are in [docs/](docs/README.md); results
@@ -68,7 +68,7 @@ present.
 
 | Phase | Focus | Status |
 | --- | --- | --- |
-| 1 | Pipeline and change-control foundation | Planned |
+| 1 | Pipeline and change-control foundation | Complete |
 | 2 | Secrets and static analysis | Planned |
 | 3 | Dependencies, SBOM and supply chain | Planned |
 | 4 | Container and infrastructure-as-code security, signing | Planned |

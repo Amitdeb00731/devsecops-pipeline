@@ -30,8 +30,32 @@ order they happened. Each phase adds its own entries as the work is done.
 
 ## Phase log
 
-Entries are added here as each phase completes.
+### Phase 1: pipeline and change-control foundation (2026-11-06)
 
+**Situation.** The repository needed its delivery process to enforce change
+management before any scanner was added.
 
+**Task.** Make it impossible to reach `main` without review, passing checks, a
+recorded approver and a verified signature.
 
+**Action.** Added a FastAPI application skeleton with a health check and a test, a
+baseline GitHub Actions `ci` workflow (ruff and pytest), `CODEOWNERS`, and the
+`protect-main` ruleset: required pull request with one approval, dismiss stale
+approvals, require Code Owners, require the `build-test` status check, require
+signed commits, require linear history, block force pushes, no bypass. Configured
+SSH commit signing and registered the signing key on the account.
 
+**Result.** Verified on the live repository: a direct push to `main` is rejected
+with all three controls cited (GH013), a pull request shows checks passing but
+merging blocked on the required review, and a signed commit shows the Verified
+badge. Evidence in `evidence/phase1/`.
+
+**Fixes and lessons.**
+- SSH signing produced "No signature" until `user.signingkey` and
+  `gpg.ssh.program` were set with Windows paths via `cygpath`; the `~` path did not
+  expand for signing.
+- A commit shows Unverified until the commit's author email is a verified email on
+  the GitHub account, separate from registering the signing key.
+- Solo-lab limitation: one required approval plus no self-approval means no pull
+  request can merge without an owner bypass. Recorded honestly; a real team has a
+  separate approver.
