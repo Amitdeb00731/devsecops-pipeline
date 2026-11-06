@@ -1,0 +1,69 @@
+name: supply-chain
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  dep-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pip-audit
+      - run: pip-audit -r app/requirements.txt
+
+  dep-trivy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy dependency scan (gate)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: app
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+      - name: Trivy dependency scan (SARIF)
+        if: always()
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: app
+          format: sarif
+          output: trivy-deps.sarif
+          severity: HIGH,CRITICAL
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-deps.sarif
+          category: trivy-deps
+
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate CycloneDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: app
+          format: cyclonedx-json
+          output-file: sbom/app-sbom.cdx.json
+      - name: Scan the SBOM with Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          grype sbom:sbom/app-sbom.cdx.json -o table || true
+      - name: Retain the SBOM as a build artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/app-sbom.cdx.json

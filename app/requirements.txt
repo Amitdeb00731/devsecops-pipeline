@@ -1,3 +1,10 @@
-fastapi==0.115.5
-uvicorn==0.32.1
+# Baseline refreshed to current patched versions in Phase 3 so the dependency
+# scan starts from a clean state. One dependency is then pinned to a known-
+# vulnerable version on purpose, so the supply-chain gate has something to catch.
+fastapi==0.162.0
+uvicorn==0.54.0
 httpx==0.28.1
+# Planted (Phase 3): PyJWT 2.3.0 carries known CVEs, including an algorithm
+# confusion flaw (CVE-2022-29217). pip-audit and Trivy flag it; the Phase 3
+# remediation upgrades it to a patched release. See app/README.md.
+pyjwt==2.3.0
