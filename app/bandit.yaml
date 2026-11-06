@@ -1,0 +1,5 @@
+# Bandit configuration for vulnerable-bank-api.
+# Bandit is run as a pre-commit hook and in CI from Phase 2. The test code is
+# excluded so test assertions do not raise false positives.
+exclude_dirs:
+  - tests
