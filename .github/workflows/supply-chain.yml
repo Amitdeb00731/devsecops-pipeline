@@ -63,7 +63,7 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
           grype sbom:sbom/app-sbom.cdx.json -o table || true
       - name: Retain the SBOM as a build artefact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom/app-sbom.cdx.json
