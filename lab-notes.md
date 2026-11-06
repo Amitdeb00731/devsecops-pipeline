@@ -94,3 +94,43 @@ check. Evidence in `evidence/phase2/`.
   it is left in and carried to the Phase 5 dynamic test.
 - Pre-commit sets aside unstaged changes before running, so hooks must be run
   against staged files or they scan the previous clean version.
+
+### Phase 3: dependencies, SBOM and supply chain (2026-11-06)
+
+**Situation.** The pipeline could catch insecure code, but not a dependency that
+was secure when written and later found vulnerable, and it kept no record of what
+each build contained.
+
+**Task.** Prove, with a planted vulnerable dependency, that dependency scanning and
+the SBOM flag it and then pass after the upgrade, and that Dependabot keeps the
+control running afterwards.
+
+**Action.** Added a `supply-chain` workflow with three jobs: pip-audit and Trivy
+(filesystem mode, HIGH and CRITICAL set to fail the job) as two independent
+dependency scanners, and a Syft job that generates a CycloneDX SBOM and retains it
+as a build artefact. Added `.github/dependabot.yml` for the pip and github-actions
+ecosystems. Refreshed the baseline dependencies to current patched versions so the
+only finding would be the planted one, then pinned PyJWT to 2.3.0.
+
+**Result.** Verified on the live repository: `dep-audit` and `dep-trivy` both failed
+on PyJWT 2.3.0 while `sbom` and every other gate passed; after upgrading PyJWT to
+2.15.1 and committing the retained CycloneDX SBOM, the same pull request passed
+every check. Dependabot independently raised the same PyJWT upgrade and bumps for
+the pipeline's own Actions. Evidence in `evidence/phase3/`.
+
+**Fixes and lessons.**
+- Trivy was first pinned to `aquasecurity/trivy-action@0.24.0`, a tag that does not
+  exist, because the action's tags are `v`-prefixed. The job failed at setup in a
+  few seconds without scanning, which read as a catch but was not. Corrected to
+  `@v0.36.0`. A red check is only evidence once you confirm it failed for the reason
+  you intended, not on a broken configuration.
+- The baseline has to be clean first. The original FastAPI and Starlette pins were
+  themselves flagged by the current advisory database, so they were refreshed to
+  patched versions before the single planted CVE was added, otherwise the gate
+  could never reach green.
+- A conflicted pull request does not run its Actions checks. The planted Phase 3 had
+  already merged to `main`, so the remediation branch and `main` had each created
+  the workflow file, and the checks sat waiting until the branch was rebuilt on
+  current `main`.
+- Dependabot activates from the default branch, so once its config reached `main` it
+  immediately raised update pull requests. That is the ongoing control working.
