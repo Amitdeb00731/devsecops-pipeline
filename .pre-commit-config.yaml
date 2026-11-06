@@ -1,0 +1,18 @@
+# Pre-commit hooks: catch secrets and insecure code before a commit is created,
+# on the developer's own machine. Install once in the repository with:
+#
+#   pip install pre-commit && pre-commit install
+#
+# The same checks run in continuous integration, so a developer who skips or
+# bypasses the hook is still caught there. That is the defence-in-depth point:
+# the local hook is a convenience, the pipeline is the control.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.10
+    hooks:
+      - id: bandit
+        args: ["-c", "app/bandit.yaml"]
