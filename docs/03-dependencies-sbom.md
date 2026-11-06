@@ -7,10 +7,13 @@ that a leaked or outdated dependency would otherwise defeat.
 
 ## 3.1 Plant the vulnerable dependency
 
-Pin one dependency in `app/requirements.txt` to a version with a known CVE (for
-example an older `requests` or `jinja2` release). Record it in `app/README.md` as a
-deliberate weakness with the control it exercises. The scanners below must flag it;
-the upgrade commit must clear it.
+First refresh the existing dependencies to current patched versions, so the scan
+starts from a clean baseline and the only finding is the one we plant. Then pin one
+dependency in `app/requirements.txt` to a version with a known CVE. This lab pins
+`pyjwt==2.3.0`, which carries an algorithm-confusion flaw (CVE-2022-29217) among
+others and is a natural dependency for a service that would issue JSON Web Tokens.
+Record it in `app/README.md` as a deliberate weakness with the control it exercises.
+The scanners below must flag it; the upgrade commit must clear it.
 
 ## 3.2 Dependency scanning in CI
 
