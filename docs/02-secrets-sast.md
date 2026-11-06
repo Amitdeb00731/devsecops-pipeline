@@ -86,17 +86,31 @@ Semgrep, with the registry rulesets for Python and for secrets:
 ```
 
 CodeQL, GitHub's own analyser, added through the **CodeQL** starter workflow
-(`.github/workflows/codeql.yml`) with the `python` language pack. It finds the SQL
-injection and the missing authorisation check as data-flow problems.
+(`.github/workflows/codeql.yml`) with the `python` language pack and the
+`security-extended` query suite. It finds the SQL injection as a tainted data-flow
+problem. The missing authorisation check is a design flaw rather than a data-flow
+bug, so it is flagged by Semgrep's audit rules where one matches and is proven end
+to end by the Phase 5 dynamic test, which calls the unprotected route and shows it
+succeed without credentials. Recording this honestly matters: a static analyser
+finds the injection reliably, but authorisation gaps are best confirmed by exercising
+the running application.
 
 ## 2.5 Prove the gate, then fix
 
 1. Open a pull request that still contains the planted secret and the injection
-   flaw. Capture the failing run: Gitleaks blocks the secret, Semgrep and CodeQL
-   flag the injection and the authorisation gap.
-2. Remediate: move the secret to an environment variable read at runtime, remove
-   the committed `.env`, parameterise the query, and add the authorisation check.
-3. Re-run. The pull request now passes, and the security tab shows the findings
+   flaw. Capture the failing run: Gitleaks blocks the secret in continuous
+   integration, and CodeQL flags the SQL injection as a tainted data-flow alert.
+   The missing-authorisation route is not flagged here, because no static analyser
+   treats it as a bug; that gap is carried to the Phase 5 dynamic test.
+2. Remediate: move the secret to an environment variable read at runtime, and
+   parameterise the query so the driver binds the value. The missing-authorisation
+   route is deliberately left in place for Phase 5.
+3. A secret that reached the server is treated as compromised, so removing it in a
+   later commit is not enough: it must be purged from the branch history and the
+   secret rotated. Here the branch is rewritten to a single clean commit with no
+   secret in any commit, and the synthetic value is discarded. Gitleaks then
+   re-scans the whole history and passes.
+4. Re-run. The pull request now passes, and the security tab shows the findings
    resolved. Both the failing and the passing runs are evidence.
 
 ## Phase 2 deliverables
