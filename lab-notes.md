@@ -31,3 +31,4 @@ order they happened. Each phase adds its own entries as the work is done.
 ## Phase log
 
 Entries are added here as each phase completes.
+
