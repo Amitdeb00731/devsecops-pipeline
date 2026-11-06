@@ -7,4 +7,4 @@ httpx==0.28.1
 # Planted (Phase 3): PyJWT 2.3.0 carries known CVEs, including an algorithm
 # confusion flaw (CVE-2022-29217). pip-audit and Trivy flag it; the Phase 3
 # remediation upgrades it to a patched release. See app/README.md.
-pyjwt==2.3.0
+pyjwt==2.15.1
