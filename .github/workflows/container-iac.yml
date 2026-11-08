@@ -1,0 +1,122 @@
+name: container-iac
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  image-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t app:${{ github.sha }} -f app/Dockerfile .
+      - name: Trivy image scan (gate)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: app:${{ github.sha }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Trivy image scan (SARIF for the Security tab)
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: app:${{ github.sha }}
+          format: sarif
+          output: trivy-image.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+      - name: Upload image findings
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image.sarif
+          category: trivy-image
+  iac-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Checkov
+        run: pip install checkov==3.4.3
+      - name: Checkov (gate)
+        run: checkov -d iac --framework terraform --compact
+      - name: Checkov (SARIF for the Security tab)
+        if: always()
+        run: checkov -d iac --framework terraform -o sarif --output-file-path checkov_out || true
+      - name: Upload Checkov findings
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov_out/results_sarif.sarif
+          category: checkov
+      - name: Trivy config scan (report only)
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: iac
+          format: sarif
+          output: trivy-config.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+      - name: Upload Trivy config findings
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+  sign:
+    needs: image-scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: sigstore/cosign-installer@v4.1.0
+      - name: Lowercase the image name for GHCR
+        id: img
+        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Build, push, capture digest
+        id: build
+        run: |
+          IMAGE="${{ steps.img.outputs.name }}"
+          docker build -t "$IMAGE:${{ github.sha }}" -f app/Dockerfile .
+          docker push "$IMAGE:${{ github.sha }}"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:${{ github.sha }}" | cut -d'@' -f2)
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+          echo "ref=$IMAGE@$DIGEST" >> "$GITHUB_OUTPUT"
+      - name: Sign the image (keyless)
+        run: cosign sign --yes ${{ steps.build.outputs.ref }}
+      - name: Verify the signature
+        run: |
+          cosign verify ${{ steps.build.outputs.ref }} \
+            --certificate-identity-regexp "^https://github.com/[^/]+/[^/]+/.github/workflows/container-iac.yml@" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+      - name: Attach build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.img.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
