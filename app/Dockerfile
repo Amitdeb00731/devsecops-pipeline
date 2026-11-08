@@ -2,7 +2,7 @@
 # shown failing. The base image is an end-of-life Debian buster release pinned only
 # by a floating tag, and the process runs as root. The hardened version is landed in
 # the Phase 4 remediation commit: a digest-pinned slim base and a non-root user.
-FROM python:3.9-slim-buster
+FROM python:3.10-slim-buster
 
 WORKDIR /app
 
