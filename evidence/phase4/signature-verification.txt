@@ -1,0 +1,72 @@
+Phase 4 signing evidence: cosign signature verification and SLSA build provenance
+Source: GitHub Actions run 42484821656, job "sign", branch main, commit de37912.
+https://github.com/Amitdeb00731/devsecops-pipeline/actions/runs/42484821656
+
+This is a transcript of the relevant lines from the sign job log. It records what
+the pipeline did on the push to main: pushed the image to GHCR, signed it keylessly
+with cosign, verified the signature, and attached SLSA build provenance.
+
+-------------------------------------------------------------------------------
+1. Push to GHCR (single plain image manifest, accepted)
+-------------------------------------------------------------------------------
+$ docker buildx build --provenance=false --sbom=false --load \
+    -t "ghcr.io/amitdeb00731/devsecops-pipeline:de37912f00aadc51593a89835c88ef8a6c41ce2f" \
+    -f app/Dockerfile .
+...
+#12 exporting manifest sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850 done
+
+$ docker push "ghcr.io/amitdeb00731/devsecops-pipeline:de37912f00aadc51593a89835c88ef8a6c41ce2f"
+...
+de37912f00aadc51593a89835c88ef8a6c41ce2f: digest: sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850 size: 2072
+
+(No "error from registry: denied". The earlier failure was BuildKit's default
+provenance attestation turning the artefact into an OCI index, which GHCR rejected
+on the first push. Building a plain manifest fixes it.)
+
+-------------------------------------------------------------------------------
+2. Sign the image keylessly (cosign, GitHub OIDC, no stored key)
+-------------------------------------------------------------------------------
+$ cosign sign --yes ghcr.io/amitdeb00731/devsecops-pipeline@sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850
+Generating ephemeral keys...
+Signing artifact...
+
+-------------------------------------------------------------------------------
+3. Verify the signature against the expected identity and issuer
+-------------------------------------------------------------------------------
+$ cosign verify ghcr.io/amitdeb00731/devsecops-pipeline@sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850 \
+    --certificate-identity-regexp "^https://github.com/[^/]+/[^/]+/.github/workflows/container-iac.yml@" \
+    --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+Verification for ghcr.io/amitdeb00731/devsecops-pipeline@sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850 --
+[{"critical":{"identity":{"docker-reference":"ghcr.io/amitdeb00731/devsecops-pipeline@sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850"},"image":{"docker-manifest-digest":"sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850"},"type":"https://sigstore.dev/cosign/sign/v1"},"optional":{}}]
+The following checks were performed on each of these signatures:
+  - The cosign claims were validated
+  - Existence of the claims in the transparency log was verified offline
+  - The code-signing certificate was verified using trusted certificate authority certificates
+
+-------------------------------------------------------------------------------
+4. Attach SLSA build provenance (actions/attest-build-provenance@v2)
+-------------------------------------------------------------------------------
+predicate-type: https://slsa.dev/provenance/v1
+buildType:      https://actions.github.io/buildtypes/workflow/v1
+builder.id:     https://github.com/Amitdeb00731/devsecops-pipeline/.github/workflows/container-iac.yml@refs/heads/main
+resolvedDependencies[0]:
+  uri:    git+https://github.com/Amitdeb00731/devsecops-pipeline@refs/heads/main
+  digest: gitCommit de37912f00aadc51593a89835c88ef8a6c41ce2f
+
+Attestation created for ghcr.io/amitdeb00731/devsecops-pipeline@sha256:eb064d86ce78dcfebd38878092581a351e9cce7e90b967dbdc05e6a5798e0850
+Attestation signature uploaded to Rekor transparency log
+  https://search.sigstore.dev?logIndex=3755875288
+Attestation uploaded to repository
+  https://github.com/Amitdeb00731/devsecops-pipeline/attestations/65050745
+Attestation uploaded to registry
+  ghcr.io/amitdeb00731/devsecops-pipeline@sha256:e784f10465d34a9339d071089ba21b5248f672ba46a92f84cb9b9e42664398fe
+
+-------------------------------------------------------------------------------
+What this proves
+-------------------------------------------------------------------------------
+The image that passed the Phase 4 gates is signed, the signature verifies against
+the pipeline's own workflow identity (not a stored key), and its provenance ties the
+image digest to the exact source commit and workflow run. Verification succeeds only
+for this identity and issuer, so an unsigned image, or one signed elsewhere, fails
+the same check.
