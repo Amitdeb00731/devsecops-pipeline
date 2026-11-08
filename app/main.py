@@ -7,18 +7,46 @@ no static analyser flags that as a bug; it is the Phase 5 dynamic test that prov
 the gap by calling the route without credentials. It is documented in
 app/README.md and carried to Phase 5 rather than fixed here.
 """
+import contextlib
 import os
 import sqlite3
 
 from fastapi import FastAPI
-
-app = FastAPI(title="vulnerable-bank-api", version="0.1.0")
 
 # Remediated (secret scanning): the payments API token is read from the
 # environment at runtime, so no secret is committed to source.
 PAYMENTS_API_KEY = os.environ.get("PAYMENTS_API_KEY", "")
 
 DB_PATH = "bank.db"
+
+
+def init_db() -> None:
+    """Create the demo schema and seed one account if the database is empty.
+
+    This is test-harness setup, not application logic: it makes the service
+    runnable for the Phase 5 dynamic test without a separate seed step.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS accounts (id TEXT PRIMARY KEY, owner TEXT, balance REAL)"
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO accounts (id, owner, balance) VALUES (?, ?, ?)",
+            ("1", "demo", 1000.0),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="vulnerable-bank-api", version="0.1.0", lifespan=lifespan)
 
 
 @app.get("/health")

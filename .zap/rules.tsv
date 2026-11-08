@@ -1,0 +1,19 @@
+# OWASP ZAP baseline rules for the Phase 5 dynamic test.
+# Tab separated: <rule id>	<WARN|IGNORE|FAIL>	<comment>.
+# The baseline scan runs as the breadth check and reports to the run. The passive
+# browser-hardening alerts below are set to WARN (reported, not failing) with a
+# reason: the target is a machine-to-machine test API with no browser surface, so
+# response security headers are not the control under test. The binding control for
+# this release is the authorisation gate, proven by the access-control probe and
+# enforced by the policy gate, not by these passive alerts.
+10015	WARN	Incomplete or no cache-control header: accepted, API responses are not browser-cached.
+10019	WARN	Content-Type missing on some responses: accepted for the test harness.
+10020	WARN	Anti-clickjacking header (X-Frame-Options) absent: accepted, no browser surface.
+10021	WARN	X-Content-Type-Options header absent: accepted, no browser surface.
+10036	WARN	Server header leaks the uvicorn version: accepted for the lab.
+10037	WARN	X-Powered-By header present: accepted for the lab.
+10038	WARN	Content-Security-Policy header absent: accepted, no browser surface.
+10049	WARN	Non-storable or non-cacheable content: accepted, dynamic API responses.
+10063	WARN	Permissions-Policy header absent: accepted, no browser surface.
+10096	WARN	Timestamp disclosure: accepted, not sensitive in this test harness.
+90004	WARN	Insufficient site isolation headers: accepted, no browser surface.

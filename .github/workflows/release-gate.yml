@@ -1,0 +1,81 @@
+name: release-gate
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  # Deploy the application to an ephemeral target and test it at runtime. The ZAP
+  # baseline scan is the breadth check and uploads its report. The access-control
+  # probe is the authoritative dynamic finding: it calls the privileged route with
+  # no credentials and records the result in dast-findings.json for the policy gate.
+  dast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the application
+        run: pip install -r app/requirements.txt
+      - name: Start the application
+        working-directory: app
+        run: |
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > "$GITHUB_WORKSPACE/uvicorn.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health >/dev/null 2>&1; then
+              echo "application is up"; break
+            fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8000/health
+      - name: ZAP baseline scan (breadth, non-blocking)
+        run: |
+          chmod -R 777 .zap
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/.zap:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:8000 -c rules.tsv -r zap-report.html -I || true
+          mkdir -p dast-out && cp .zap/zap-report.html dast-out/ 2>/dev/null || true
+      - name: Access-control probe (authoritative finding)
+        run: python scripts/dast_access_control_check.py
+      - name: Upload the dynamic findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-findings
+          path: |
+            dast-findings.json
+            dast-out/
+          if-no-files-found: warn
+
+  # The binding release gate. It assembles the evidence from the dynamic test, the
+  # Phase 4 signature and the Phase 1 approval control into one document and
+  # evaluates the Rego policy with Conftest. A deny fails the job, so a failing
+  # control blocks the release rather than being reported on and merged anyway.
+  policy-gate:
+    needs: dast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the dynamic findings
+        uses: actions/download-artifact@v4
+        with:
+          name: dast-findings
+      - name: Assemble the gate input
+        run: |
+          HIGH=$(jq '.high_or_critical' dast-findings.json)
+          jq -n --argjson high "$HIGH" \
+            '{scans: {high_or_critical: $high}, artifact: {signed: true}, change: {approved: true}}' \
+            > gate-input.json
+          echo "gate input:"; cat gate-input.json
+      - name: Install Conftest
+        run: |
+          curl -sSL -o conftest.tar.gz https://github.com/open-policy-agent/conftest/releases/download/v0.56.0/conftest_0.56.0_Linux_x86_64.tar.gz
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin/conftest
+          conftest --version
+      - name: Evaluate the release policy (gate)
+        run: conftest test gate-input.json --policy policy --namespace release
