@@ -18,7 +18,7 @@ current as the phases proceed.
 | Hard-coded secret in source | Secret scanning (Gitleaks) | 2 | Fixed |
 | `.env` with a fake credential committed | Secret scanning, push protection | 2 | Fixed |
 | SQL built by string concatenation | Static analysis (CodeQL) | 2 | Fixed |
-| Route with no authorisation check | Dynamic testing | 5 | Planted |
+| Route with no authorisation check | Dynamic testing | 5 | Fixed |
 | Outdated dependency with a known CVE (PyJWT 2.3.0) | Dependency scan, SBOM | 3 | Fixed |
 | Dockerfile running as root, unpinned base | Image scan (Trivy) | 4 | Fixed |
 | Over-permissive Terraform rule (management port open to 0.0.0.0/0) | IaC scan (Checkov, Trivy) | 4 | Fixed |
