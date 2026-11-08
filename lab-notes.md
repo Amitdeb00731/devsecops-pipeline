@@ -134,3 +134,60 @@ the pipeline's own Actions. Evidence in `evidence/phase3/`.
   current `main`.
 - Dependabot activates from the default branch, so once its config reached `main` it
   immediately raised update pull requests. That is the ongoing control working.
+
+### Phase 4: container and infrastructure-as-code security, signing (2026-11-08)
+
+**Situation.** The pipeline scanned source and dependencies, but not the container
+image that actually runs or the infrastructure that hosts it, and it could not
+prove that the image reaching the registry was the one that passed the gates.
+
+**Task.** Prove, with a planted weak Dockerfile and a planted over-permissive
+Terraform rule, that the image scan and the infrastructure-as-code scan block a bad
+artefact and then pass once it is fixed, and that the released image is signed and
+its provenance recorded.
+
+**Action.** Added a `container-iac` workflow with three jobs. `image-scan` builds the
+image and scans it with Trivy (HIGH and CRITICAL with a fix available set to fail the
+job). `iac-scan` runs Checkov as the blocking gate over the Terraform, with Trivy in
+config mode as a second, report-only scanner that uploads to the security tab
+(tfsec is deprecated and folded into Trivy, so it is not used). `sign` runs on the
+push to `main` only: it pushes the image to GHCR, signs it keylessly with cosign
+using the workflow's OIDC identity, verifies the signature, and attaches SLSA build
+provenance with `actions/attest-build-provenance`. Planted a weak base image
+(end-of-life Debian, running as root) and a security group opening the management
+port to `0.0.0.0/0`.
+
+**Result.** Verified on the live repository from the run logs, not the green ticks
+alone. `iac-scan` failed on Checkov `CKV_AWS_24` (ingress 22 open to the world) and
+`image-scan` failed with fourteen HIGH operating-system findings and three HIGH
+Python findings, each for the intended reason. After remediation, a digest-pinned
+`python:3.12-slim-bookworm` base running as a non-root user and the ingress
+restricted to a trusted admin CIDR, both gates passed. On the merge to `main` the
+`sign` job pushed the image (`sha256:eb064d86…`), cosign signed it, `cosign verify`
+passed its three checks against the `container-iac.yml` identity and the GitHub
+Actions issuer, and the SLSA provenance was recorded in the Rekor transparency log,
+on the repository's Attestations page and in GHCR. Evidence in `evidence/phase4/`.
+
+**Fixes and lessons.**
+- A planted base image has to build, or the scanner never runs. The first planted
+  base, `python:3.9-slim-buster`, could not install the app (FastAPI 0.162 needs
+  Python 3.10 or newer), so the build failed and Trivy errored with no image to
+  scan. That is a red check for the wrong reason. Corrected to a base that builds
+  but is genuinely vulnerable (`python:3.10-slim-buster`) so the scan actually ran
+  and caught the real findings.
+- Trivy reported `setuptools` 70.3.0 as vulnerable (CVE-2025-47273) even after the
+  installed `setuptools` was upgraded to a patched release. The cause is that Trivy
+  also reads pip's bundled CycloneDX SBOM at `pip/_vendor/bom.cdx.json`, which lists
+  pip's stripped-down vendored `setuptools` 70.3.0 (only `pkg_resources`, not the
+  exploitable code path) regardless of what is installed. Trivy's own "third-party
+  SBOM may lead to inaccurate detection" warning points to this. The fix is to
+  delete that bundled SBOM in the build so the scan reflects the packages actually
+  present.
+- GHCR rejected the first push with `error from registry: denied` even though the
+  login succeeded and every layer uploaded. Modern `docker build` (BuildKit with the
+  containerd image store) attaches a provenance attestation by default, which makes
+  the pushed artefact an OCI index, and GHCR denied that index on the first push to a
+  new package. The layers uploading first proved write access, so it was the artefact
+  shape, not a permission. The fix is to build a single plain image manifest
+  (`docker buildx build --provenance=false --sbom=false --load`); provenance is still
+  attached separately by the `attest-build-provenance` step, so nothing is lost.
