@@ -1,0 +1,29 @@
+Phase 5 evidence: the release gate allowing the remediated change
+
+Run:    release-gate #2 (pull request #19), commit 26372685 (authorisation enforced)
+Jobs:   dast -> success, policy-gate -> success
+Source: https://github.com/Amitdeb00731/devsecops-pipeline/actions/runs/42519484769
+
+--- dast job, access-control probe (the authoritative finding) ---
+
+OK: admin route rejected the unauthenticated call (HTTP 401)
+wrote dast-findings.json: high_or_critical=0
+
+--- policy-gate job, gate input assembled from the dynamic finding ---
+
+gate input:
+{
+  "scans": { "high_or_critical": 0 },
+  "artifact": { "signed": true },
+  "change": { "approved": true }
+}
+
+--- policy-gate job, Conftest evaluation of policy/release.rego ---
+
+3 tests, 3 passed, 0 warnings, 0 failures, 0 exceptions
+
+Reading: the remediation added an authorisation check to the privileged route, so
+the unauthenticated probe is now rejected with HTTP 401, the dynamic finding clears
+(high_or_critical=0), and all three release criteria pass. The gate allows the
+release. Nothing about the gate changed between the two runs; only the application
+under test did, which is what makes this a demonstration of the control working.

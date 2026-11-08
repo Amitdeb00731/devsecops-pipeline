@@ -1,0 +1,34 @@
+Phase 5 evidence: OWASP ZAP baseline scan (breadth check, non-blocking)
+
+Run:    release-gate #2 (pull request #19), dast job
+Source: https://github.com/Amitdeb00731/devsecops-pipeline/actions/runs/42519484769
+
+The ZAP baseline runs against the running service as the breadth check and reports
+to the run. It is non-blocking by design (invoked with -I and `|| true`); the
+binding control for this release is the access-control probe, evaluated by the
+policy gate.
+
+--- scan summary (from the dast job log) ---
+
+Using the Automation Framework
+Total of 3 URLs
+[ 67 passive scan rules reported PASS ]
+WARN-NEW: Storable and Cacheable Content [10049] x 3
+    http://localhost:8000 (404 Not Found)
+    http://localhost:8000/robots.txt (404 Not Found)
+    http://localhost:8000/sitemap.xml (404 Not Found)
+FAIL-NEW: 0   FAIL-INPROG: 0   WARN-NEW: 1   WARN-INPROG: 0   INFO: 0   IGNORE: 0   PASS: 67
+Automation plan warnings:
+    Job spider error accessing URL http://localhost:8000 status code returned : 404 expected 200
+
+Note on interpretation. The target is a headless machine-to-machine API with no
+browseable root, so the ZAP spider receives HTTP 404 on / and the crawl is shallow.
+The passive browser-hardening alerts configured in .zap/rules.tsv are accepted
+(set to WARN with reasons) for the same reason: there is no browser surface for a
+missing security header to protect. This is precisely why the dynamic access-control
+probe, which calls the known privileged route directly, is the authoritative finding
+rather than the spider-driven baseline. ZAP provides breadth; the probe provides the
+binding depth, and the policy gate acts on the probe.
+
+The full ZAP HTML report is produced in the run and retained as the dast-findings
+build artefact (dast-out/zap-report.html) on each run linked above.
