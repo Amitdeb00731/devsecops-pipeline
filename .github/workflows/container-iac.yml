@@ -102,7 +102,7 @@ jobs:
         id: build
         run: |
           IMAGE="${{ steps.img.outputs.name }}"
-          docker build -t "$IMAGE:${{ github.sha }}" -f app/Dockerfile .
+          docker buildx build --provenance=false --sbom=false --load -t "$IMAGE:${{ github.sha }}" -f app/Dockerfile .
           docker push "$IMAGE:${{ github.sha }}"
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE:${{ github.sha }}" | cut -d'@' -f2)
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
