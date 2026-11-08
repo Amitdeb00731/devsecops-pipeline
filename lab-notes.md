@@ -246,3 +246,30 @@ changed. Evidence in `evidence/phase5/`.
   shelled-out request, so the static analysers already in the pipeline (CodeQL,
   Bandit) do not flag the test itself as a request-forgery or insecure-call finding.
   The gate that catches weaknesses must not introduce one.
+
+### Phase 6: report, scorecard and governance mapping (2026-11-08)
+
+**Situation.** With all nine gates built and proven, the build needed the artefacts a
+security and controls function produces from a pipeline: a technical record, a mapping
+to recognised frameworks, and a business case.
+
+**Task.** Write the pipeline security report, the controls mapping and the business
+report, each citing the evidence already captured, and confirm the repository's final
+state is clean.
+
+**Action.** Added `report/pipeline-security-report.md` (each gate in order, the
+control it enforces, the weakness it was proven against with the failing and passing
+runs cited, and a gate-by-gate scorecard), `report/controls-mapping.md` (NIST SSDF,
+OWASP SAMM and DSOMM, and the change-management, segregation-of-duties and
+audit-trail IT general controls, with the lab's limitations stated), and
+`report/business-report.md` (framed against UK operational resilience and SOX-style
+IT general controls, with a layers-of-defence diagram). Reconciled two index entries
+that had drifted from the as-built: the IaC gate shipped as Checkov and Trivy rather
+than tfsec, and the Phase 6 scorecard lives under `report/` rather than `evidence/`.
+
+**Result.** The final state of each gate is recorded in the scorecard. All seven
+planted application weaknesses are in the Fixed state in `app/README.md`, and no
+planted weakness remains in the head of the default branch. The secret-scanning gate
+runs over the full history, so the one synthetic secret used for the Phase 2 test was
+purged from the branch history rather than deleted in a later commit. Build 3 is
+complete.
