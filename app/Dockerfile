@@ -9,8 +9,9 @@ RUN useradd --create-home --uid 10001 appuser
 WORKDIR /home/appuser/app
 
 COPY --chown=appuser:appuser app/requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2"
 
 COPY --chown=appuser:appuser app/ .
 
