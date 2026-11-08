@@ -20,8 +20,8 @@ current as the phases proceed.
 | SQL built by string concatenation | Static analysis (CodeQL) | 2 | Fixed |
 | Route with no authorisation check | Dynamic testing | 5 | Planted |
 | Outdated dependency with a known CVE (PyJWT 2.3.0) | Dependency scan, SBOM | 3 | Fixed |
-| Dockerfile running as root, unpinned base | Image scan (Trivy) | 4 | Planned |
-| Over-permissive Terraform rule | IaC scan (Checkov, tfsec) | 4 | Planned |
+| Dockerfile running as root, unpinned base | Image scan (Trivy) | 4 | Planted |
+| Over-permissive Terraform rule (management port open to 0.0.0.0/0) | IaC scan (Checkov, Trivy) | 4 | Planted |
 
 Status values: **Planned** (not yet added), **Planted** (present now, so the gate
 can be shown failing), **Fixed** (removed by the remediation commit, so the gate

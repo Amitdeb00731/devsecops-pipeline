@@ -1,0 +1,13 @@
+# Keep the build context small and out of the image: no caches, no tests, and
+# never the synthetic .env used only for the secret-scanning test.
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+app/tests
+app/.env
+.git
+.github
+evidence
+docs
+report
