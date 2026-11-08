@@ -1,0 +1,31 @@
+Phase 5 evidence: the release gate blocking a live finding
+
+Run:    release-gate #1 (pull request #19), commit 4c6e8c55 (planted route, no fix)
+Jobs:   dast -> success, policy-gate -> failure
+Source: https://github.com/Amitdeb00731/devsecops-pipeline/actions/runs/42489671561
+
+--- dast job, access-control probe (the authoritative finding) ---
+
+FINDING: admin route reachable unauthenticated (HTTP 200)
+wrote dast-findings.json: high_or_critical=1
+
+--- policy-gate job, gate input assembled from the dynamic finding ---
+
+gate input:
+{
+  "scans": { "high_or_critical": 1 },
+  "artifact": { "signed": true },
+  "change": { "approved": true }
+}
+
+--- policy-gate job, Conftest evaluation of policy/release.rego ---
+
+FAIL - gate-input.json - release - release blocked: 1 high or critical dynamic finding(s)
+
+3 tests, 2 passed, 0 warnings, 1 failure, 0 exceptions
+Process completed with exit code 1.
+
+Reading: the signature control (artifact.signed) and the approval control
+(change.approved) both passed. The single failing control was the live
+access-control finding, and because the gate fails the job on a deny, the release
+was blocked rather than reported on and merged anyway.

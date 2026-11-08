@@ -191,3 +191,58 @@ on the repository's Attestations page and in GHCR. Evidence in `evidence/phase4/
   shape, not a permission. The fix is to build a single plain image manifest
   (`docker buildx build --provenance=false --sbom=false --load`); provenance is still
   attached separately by the `attest-build-provenance` step, so nothing is lost.
+
+### Phase 5: dynamic testing and the binding policy gate (2026-11-08)
+
+**Situation.** Every gate so far reads code, dependencies or artefacts at rest. None
+of them exercises the running service, and none of them actually blocks a release:
+they report, and a human merges. The application still carried one planted weakness
+that no static analyser can see, a privileged balance-adjustment route with no
+authorisation check, and the pipeline had no control that would stop an unapproved or
+insecure release from reaching production.
+
+**Task.** Prove, on one pull request, that a dynamic test finds the broken access
+control at runtime and that a policy-as-code gate fails the build on it, then passes
+once the route is fixed. Bind the gate to three controls at once: the dynamic finding,
+the Phase 4 signature and the Phase 1 approval.
+
+**Action.** Added a `release-gate` workflow with two jobs. `dast` starts the
+application on an ephemeral target, runs an OWASP ZAP baseline as the non-blocking
+breadth check, then runs an access-control probe that calls the privileged route with
+no credentials and records the result in `dast-findings.json`. `policy-gate` assembles
+that finding together with the signature and approval facts into one document and
+evaluates it with Conftest against `policy/release.rego`, which denies a release on a
+high or critical dynamic finding, an unsigned artefact or an unapproved change. A deny
+fails the job.
+
+**Result.** Verified on the live repository from the run logs, not the green ticks
+alone. On the planted commit the probe reached the admin route unauthenticated
+(HTTP 200), the gate input carried `high_or_critical: 1` with signature and approval
+both true, and Conftest returned `release blocked: 1 high or critical dynamic
+finding(s)` (3 tests, 1 failure, exit 1), so the release was blocked on the single
+failing control. After the remediation added a constant-time admin-token check that
+rejects an unauthenticated call with HTTP 401, the probe was rejected, the finding
+cleared to `high_or_critical: 0`, and Conftest passed all three tests, so the gate
+allowed the release. The gate was untouched between the two runs; only the application
+changed. Evidence in `evidence/phase5/`.
+
+**Fixes and lessons.**
+- The ZAP baseline alone is not enough for a headless API. The target has no
+  browseable root, so the ZAP spider gets HTTP 404 on `/` and its crawl is shallow,
+  and the passive header alerts do not apply because there is no browser surface. A
+  spider will not reliably exercise a specific privileged route. The access-control
+  probe, which calls the known route directly and asserts the authorisation
+  behaviour, is the authoritative control; ZAP provides breadth and a report, the
+  probe provides the binding depth, and the gate acts on the probe.
+- The probe is a measurement, not the decision. It exits non-zero only when the target
+  cannot be reached or returns an unexpected status, so a broken target can never be
+  mistaken for a passing control. The binding release decision belongs to the policy
+  gate, which keeps the test and the enforcement separate and auditable.
+- The dynamic finding has to be provable on a pull request, where the signing job does
+  not run. Running the application directly with uvicorn, rather than the signed GHCR
+  image, lets the same dynamic test and gate run on every pull request, so the control
+  is exercised on the change itself and not only after a merge to `main`.
+- The probe targets a constant, in-pipeline URL and uses an HTTP client rather than a
+  shelled-out request, so the static analysers already in the pipeline (CodeQL,
+  Bandit) do not flag the test itself as a request-forgery or insecure-call finding.
+  The gate that catches weaknesses must not introduce one.
