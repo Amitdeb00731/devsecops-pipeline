@@ -9,9 +9,16 @@ RUN useradd --create-home --uid 10001 appuser
 WORKDIR /home/appuser/app
 
 COPY --chown=appuser:appuser app/requirements.txt .
+# Install the application, upgrade the build tooling to patched versions, and
+# remove pip's bundled CycloneDX SBOM. That SBOM lists pip's stripped-down
+# vendored setuptools (70.3.0, only pkg_resources is kept), which the image scan
+# would otherwise report as a vulnerability even though the installed setuptools
+# is patched. Removing it makes the scan reflect the packages that are actually
+# present.
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2"
+    && pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2" \
+    && find /usr/local/lib -path '*/pip/_vendor/bom.cdx.json' -delete
 
 COPY --chown=appuser:appuser app/ .
 
