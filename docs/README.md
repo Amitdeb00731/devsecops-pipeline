@@ -10,7 +10,7 @@ controls are enforced automatically.
 | 1 | [Pipeline and change-control foundation](01-pipeline-foundation.md) | Branch protection, CODEOWNERS, signed commits, baseline workflow |
 | 2 | [Secrets and static analysis](02-secrets-sast.md) | Pre-commit hooks, Gitleaks, Semgrep, CodeQL, SARIF to the security tab |
 | 3 | [Dependencies, SBOM and supply chain](03-dependencies-sbom.md) | pip-audit, Dependabot, Trivy, a CycloneDX SBOM with Syft |
-| 4 | [Container and infrastructure-as-code](04-container-iac.md) | Hardened image, Trivy, Checkov, tfsec, cosign signing and verification |
+| 4 | [Container and infrastructure-as-code](04-container-iac.md) | Hardened image, Trivy, Checkov, cosign signing and verification |
 | 5 | [Dynamic testing and the policy gate](05-dynamic-policy-gate.md) | OWASP ZAP, Open Policy Agent gate that blocks the release |
 | 6 | [Report, scorecard and governance](06-report.md) | Pipeline security report, controls mapping, business summary |
 

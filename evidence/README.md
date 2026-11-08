@@ -12,8 +12,11 @@ fix, so the evidence proves the gate operates rather than merely exists.
   SBOM, the Dependabot configuration.
 - `phase4/`: the image and IaC scans and fixes, a verified signature, a rejected
   unsigned image, the provenance attestation.
-- `phase5/`: the ZAP report, the policy, the pipeline run that blocks and then
-  passes.
-- `phase6/`: the gate-by-gate scorecard.
+- `phase5/`: the dynamic test and the policy gate, the pipeline run that blocks and
+  then passes, and the ZAP baseline summary.
+
+The Phase 6 reports, including the gate-by-gate scorecard, are in
+[`report/`](../report/README.md) rather than here, since they draw on the evidence
+from every phase.
 
 Raw scanner dumps, if kept, go under a `raw/` subfolder, which is git-ignored.

@@ -1,6 +1,6 @@
 # DevSecOps Pipeline: making secure delivery a control, not a hope
 
-> **Status: in build, Phase 5 complete.** The third build in the portfolio, after the
+> **Status: complete.** The third build in the portfolio, after the
 > [AD SecOps lab](https://github.com/Amitdeb00731/secops-ad-lab) and the cloud
 > identity labs on [Azure](https://github.com/Amitdeb00731/cloud-iam-lab) and
 > AWS. The plan and the six phase guides are in [docs/](docs/README.md); results
@@ -61,10 +61,11 @@ rationale are in the [Build 3 guides](docs/README.md).
 
 ## Results
 
-Each completed phase will be written up in its guide under `docs/`, with evidence
-in `evidence/`. Each gate is built to fail a known-bad input first, then to pass
-once the weakness is fixed, so the evidence shows the control working, not merely
-present.
+Each phase is written up in its guide under `docs/`, with evidence in `evidence/`.
+Each gate is built to fail a known-bad input first, then to pass once the weakness is
+fixed, so the evidence shows the control working, not merely present. The Phase 6
+write-ups, the pipeline security report, the controls mapping and the business
+report, are in [`report/`](report/README.md).
 
 | Phase | Focus | Status |
 | --- | --- | --- |
@@ -73,7 +74,7 @@ present.
 | 3 | Dependencies, SBOM and supply chain | Complete |
 | 4 | Container and infrastructure-as-code security, signing | Complete |
 | 5 | Dynamic testing and the policy gate | Complete |
-| 6 | Report, scorecard and governance mapping | Planned |
+| 6 | Report, scorecard and governance mapping | Complete |
 
 ## Repository layout
 
