@@ -36,15 +36,14 @@ resource "aws_security_group" "app" {
   description = "Security group for the vulnerable-bank-api service, management access restricted to the trusted admin CIDR."
   vpc_id      = var.vpc_id
 
-  # PLANTED (Phase 4): the management port is open to the entire internet so the
-  # infrastructure-as-code scan can be shown failing. The Phase 4 remediation
-  # commit restricts this ingress to var.admin_cidr.
+  # Remediated (Phase 4 IaC scan): management access is restricted to the single
+  # trusted admin CIDR instead of the entire internet.
   ingress {
-    description = "PLANTED: management port open to the entire internet."
+    description = "Management access from the trusted admin network only."
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.admin_cidr]
   }
 
   egress {
