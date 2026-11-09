@@ -64,7 +64,7 @@ Full write-up in [docs/02-secrets-sast.md](../docs/02-secrets-sast.md).
 
 **Control.** Human-readable code is analysed for vulnerabilities on every pull
 request by CodeQL and Semgrep, with findings raised in the security tab and set as
-required checks.
+required status checks in the ruleset.
 
 **Weakness.** A SQL query built by string concatenation in the account-lookup route.
 
@@ -128,8 +128,11 @@ in [docs/04-container-iac.md](../docs/04-container-iac.md).
 
 **Control.** On the merge to `main`, the image is pushed to the registry, signed
 keylessly with cosign using the workflow's OIDC identity, the signature is verified
-in the pipeline, and SLSA build provenance is attached. What runs is then the
-artefact that passed the gates, and its origin is verifiable.
+in the pipeline, and SLSA build provenance is attached, so the artefact's origin is
+verifiable. In this build the image scan and the signing run as separate builds of
+the same source commit; binding both to a single immutable digest, so the signed
+artefact is provably the scanned one, is recorded as a hardening in the
+[controls mapping](controls-mapping.md).
 
 **Proven by.** The signing run on `main`. cosign signed the image, `cosign verify`
 passed its three checks against the workflow identity and the GitHub Actions issuer,
@@ -163,20 +166,24 @@ with HTTP 401, the probe was rejected and the finding cleared.
 
 ### 9. The release policy gate
 
-**Control.** A policy-as-code gate assembles the dynamic finding, the signature and
-the approval into one document and evaluates it with Conftest against the Rego policy
-in [`policy/release.rego`](../policy/release.rego). It denies a release on any of
-three conditions: a high or critical dynamic finding, an unsigned artefact, or an
-unapproved change. A deny fails the build, so a failing control blocks the release
-rather than being reported on and merged anyway. This is the gate that makes the
-pipeline binding.
+**Control.** A policy-as-code gate evaluates the Rego policy in
+[`policy/release.rego`](../policy/release.rego) with Conftest. The policy denies a
+release on any of three conditions: a high or critical dynamic finding, an unsigned
+artefact, or an unapproved change. In this build the gate reads the dynamic finding
+directly from the runtime test. The signature and the approval are enforced earlier
+in the pipeline, by the signing job (cosign signs and verifies the image) and by
+branch protection (a required, reviewed pull request), and are supplied to the gate
+as asserted preconditions rather than re-verified inside the gate; re-verifying them
+against the exact image digest and the pull-request review state is recorded as a
+hardening in the [controls mapping](controls-mapping.md). A deny fails the build, so
+a failing dynamic control blocks the release rather than being reported on and merged
+anyway.
 
 **Blocked then cleared.** On the planted commit the gate denied the release
 (`release blocked: 1 high or critical dynamic finding(s)`, one of three policy tests
-failing, build exit 1) while the signature and approval controls passed. After the
-remediation the finding cleared and all three policy tests passed, so the gate
-allowed the release. The gate itself was unchanged between the two runs; only the
-application changed.
+failing, build exit 1). After the remediation the finding cleared and all three
+policy tests passed, so the gate allowed the release. The gate itself was unchanged
+between the two runs; only the application changed.
 
 **Evidence.** [`evidence/phase5/`](../evidence/phase5/):
 [`blocked-run.txt`](../evidence/phase5/blocked-run.txt) and
@@ -213,8 +220,12 @@ pipeline proves that a defined set of controls runs on every change and that an
 insecure or unapproved change is blocked rather than merely reported. It does not
 prove the absence of every vulnerability: a scanner finds the classes of defect it
 knows, a dynamic test exercises the paths it is given, and a policy gate enforces the
-criteria it is told to enforce. The value is that the controls are automatic,
-consistent and evidenced, so security and approval are properties of the delivery
-process rather than of any one person remembering to check. The known limitations of
-the lab, in particular the single-person segregation-of-duties accommodation, are
-stated in [controls-mapping.md](controls-mapping.md).
+criteria it is told to enforce. The release gate's binding check in this build is the
+dynamic finding; the signature and approval it also requires are enforced elsewhere
+in the pipeline and asserted to the gate, as set out in the controls mapping. The
+value is that the controls are automatic, consistent and evidenced, so security and
+approval are properties of the delivery process rather than of any one person
+remembering to check. The known limitations of the lab, in particular the
+single-person segregation-of-duties accommodation, the asserted gate preconditions
+and the separate scan and signing builds, are stated in
+[controls-mapping.md](controls-mapping.md).

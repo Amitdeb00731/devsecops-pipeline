@@ -77,6 +77,24 @@ These are stated plainly so the repository is not read as more than it is.
   applies. A real team supplies the separate approver the control assumes; this is
   recorded in [`evidence/phase1/`](../evidence/phase1/) rather than presented as a
   full implementation.
+- **Release gate inputs.** The policy evaluates three criteria, but in this build only
+  the dynamic finding is read from a live result. The signature is enforced by the
+  signing job, which signs the image with cosign and verifies the signature against
+  the workflow identity, and the approval by branch protection, which requires a
+  reviewed pull request. Both are supplied to the gate as asserted preconditions rather
+  than re-verified inside the gate. The production hardening is to have the gate read
+  the cosign verification result for the exact image digest and the pull-request review
+  state from the platform, and to fail closed when either is unavailable.
+- **Artefact integrity.** The image is scanned and, on the merge to the default branch,
+  built, signed and provenance-attached. In this build the scan and the signing are
+  separate builds of the same source commit; binding both to a single immutable digest,
+  so the signed artefact is provably the scanned one, is the production hardening.
+- **Required status checks.** The `protect-main` ruleset requires the build-and-test
+  check and the secret, static-analysis, CodeQL and dependency scans to pass before a
+  pull request can merge. The container and infrastructure-as-code scan and the release
+  policy gate run on every pull request and every push to the default branch but are
+  not in the required-check set, so they report rather than block a merge; adding them
+  to the required checks is the further hardening.
 - **Control design, not certification.** The build demonstrates how the controls are
   designed and that they operate on this repository. It is not an audit, an
   accreditation or a penetration test, and it does not certify any production system.

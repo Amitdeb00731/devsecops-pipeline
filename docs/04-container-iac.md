@@ -12,19 +12,23 @@ running as root. Record it in `app/README.md` as a planted weakness. The hardene
 version, which the scan drives you to, is:
 
 ```dockerfile
-FROM python:3.12-slim@sha256:<pinned-digest>
+FROM python:3.12-slim-bookworm@sha256:<pinned-digest>
 RUN useradd --create-home --uid 10001 appuser
 WORKDIR /home/appuser/app
 COPY --chown=appuser:appuser app/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir --upgrade "setuptools>=78.1.1" "wheel>=0.46.2"
 COPY --chown=appuser:appuser app/ .
 USER appuser
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-The base image is pinned by digest, a non-root user runs the process, and no build
-tooling is left in the final image.
+The base image is pinned by digest, a non-root user runs the process, and the build
+tooling is upgraded to patched versions. This is a single-stage image, so pip and the
+upgraded build tooling remain present; a multi-stage build that copies only the
+runtime into a clean final stage is the further hardening.
 
 ## 4.2 Scan the image
 
@@ -40,7 +44,7 @@ vulnerabilities and for misconfiguration:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t app:${{ github.sha }} -f app/Dockerfile .
-      - uses: aquasecurity/trivy-action@0.24.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: app:${{ github.sha }}
@@ -60,7 +64,8 @@ gate.
 
 The `iac/` directory holds the Terraform the pipeline deploys. Plant one
 over-permissive rule first (a security group open to `0.0.0.0/0`, or a public
-bucket), documented as deliberate, then scan with Checkov and tfsec:
+bucket), documented as deliberate, then scan with Checkov as the blocking gate (with
+Trivy configuration scanning as a second, reporting source):
 
 ```yaml
   iac-scan:
@@ -105,12 +110,13 @@ private key is stored:
           cosign sign --yes ghcr.io/${{ github.repository }}:${{ github.sha }}
 ```
 
-Then verify in a later step, and prove the control by attempting to verify an
-unsigned image, which must fail:
+Then verify in a later step, pinning the certificate identity to this repository's
+signing workflow so verification accepts only a signature from that workflow, not any
+signer. Proving the control by attempting to verify an unsigned image must fail:
 
 ```bash
 cosign verify ghcr.io/${{ github.repository }}:${{ github.sha }} \
-  --certificate-identity-regexp ".*" \
+  --certificate-identity-regexp "^https://github.com/[^/]+/[^/]+/.github/workflows/container-iac.yml@" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
