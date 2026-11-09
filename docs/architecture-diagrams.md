@@ -15,7 +15,7 @@ flowchart LR
   PR["Pull request<br/>branch protection, code-owner review"]
   SAST["Secrets and SAST<br/>Gitleaks, Semgrep, CodeQL"]
   SCA["Dependencies and SBOM<br/>pip-audit, Trivy, Syft"]
-  ART["Container and IaC, sign<br/>Trivy, Checkov, tfsec, cosign"]
+  ART["Container and IaC, sign<br/>Trivy, Checkov, cosign"]
   GATE{"Policy gate<br/>all checks pass?"}
   PROD["Production<br/>signed, scanned build"]
   BACK["Back to the author<br/>fix and push"]
@@ -28,8 +28,11 @@ flowchart LR
 
 ## 2. The gate logic
 
-The policy gate reads the evidence from every earlier stage and makes one explicit
-decision. Any single failure blocks the release.
+The policy gate evaluates three release criteria and any single failure blocks the
+release. In this build the high or critical finding is read from the runtime test;
+the signature and approval states are enforced earlier by the signing job and by
+branch protection and are asserted to the gate as preconditions, as set out in the
+[controls mapping](../report/controls-mapping.md).
 
 ```mermaid
 flowchart TB
@@ -58,7 +61,7 @@ approver who is not the author.
 flowchart LR
   A["Author<br/>signed commit on a branch"]
   PR["Pull request"]
-  CHK["Required checks<br/>build, scans, signature"]
+  CHK["Required checks<br/>build, secret, SAST, deps"]
   REV["Code-owner review<br/>not the author"]
   MAIN["main branch<br/>linear, protected"]
 

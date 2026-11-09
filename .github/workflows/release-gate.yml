@@ -51,10 +51,12 @@ jobs:
             dast-out/
           if-no-files-found: warn
 
-  # The binding release gate. It assembles the evidence from the dynamic test, the
-  # Phase 4 signature and the Phase 1 approval control into one document and
-  # evaluates the Rego policy with Conftest. A deny fails the job, so a failing
-  # control blocks the release rather than being reported on and merged anyway.
+  # The binding release gate. It reads the dynamic finding from the runtime test and
+  # evaluates the Rego policy with Conftest. The signature and the approval are
+  # enforced earlier in the pipeline, by the sign job (cosign sign and verify) and by
+  # branch protection, and are supplied here as asserted preconditions rather than
+  # re-verified in the gate. A deny fails the job, so a failing dynamic control blocks
+  # the release rather than being reported on and merged anyway.
   policy-gate:
     needs: dast
     runs-on: ubuntu-latest
@@ -66,6 +68,10 @@ jobs:
           name: dast-findings
       - name: Assemble the gate input
         run: |
+          # The dynamic finding is read from the runtime test. signed and approved are
+          # asserted preconditions, enforced by the sign job and by branch protection;
+          # re-verifying them here against the exact image digest and the pull-request
+          # review state is a recorded hardening (see report/controls-mapping.md).
           HIGH=$(jq '.high_or_critical' dast-findings.json)
           jq -n --argjson high "$HIGH" \
             '{scans: {high_or_critical: $high}, artifact: {signed: true}, change: {approved: true}}' \

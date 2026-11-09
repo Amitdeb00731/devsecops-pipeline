@@ -37,7 +37,7 @@ flowchart TB
   L4["Dependency and supply-chain checks<br/>stop a known-vulnerable component"]
   L5["Build, image and infrastructure checks<br/>stop a weak image or configuration"]
   L6["Signing and provenance<br/>prove the build is genuine"]
-  L7["Dynamic test and release policy gate<br/>stop a live finding or missing approval"]
+  L7["Dynamic test and release policy gate<br/>stop a live high-severity finding before release"]
   PROD["Production<br/>approved, scanned, signed change"]
   DEV --> L1 --> L2 --> L3 --> L4 --> L5 --> L6 --> L7 --> PROD
   L7 -. "fails: returned to the developer" .-> DEV
@@ -48,7 +48,7 @@ of any one person remembering to check. Every change that reaches production has
 reviewed by someone other than its author, scanned for secrets, insecure code,
 vulnerable dependencies and weak configuration, built into a signed artefact whose
 origin can be verified, and tested at runtime against a policy that blocks the release
-if a serious finding or a missing approval is present.
+if a serious finding is present.
 
 ## How this maps to regulatory expectations
 

@@ -30,10 +30,10 @@ production and every release leaves an audit trail?**
   (SBOM) produced and retained, and known-vulnerable dependencies flagged and
   upgraded.
 - **Artefact integrity:** container images and infrastructure-as-code scanned, the
-  image signed, and the signature verified in the pipeline, so what runs is the
-  artefact that passed the gates.
+  image signed, and the signature verified in the pipeline against the workflow
+  identity, with build provenance attached.
 - **A gate that blocks:** dynamic testing and a policy-as-code gate that fails the
-  pipeline on a high-severity finding or a missing approval, not just a report.
+  pipeline on a high-severity dynamic finding, not just a report.
 - **Governance:** each control mapped to the NIST Secure Software Development
   Framework (SSDF), OWASP SAMM and its DevOps profile DSOMM, and framed against
   SOX-style IT general controls and UK operational resilience.

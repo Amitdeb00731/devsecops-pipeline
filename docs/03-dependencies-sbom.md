@@ -42,7 +42,7 @@ Trivy, in filesystem mode, which also reads the lockfile and reports severity:
       security-events: write
     steps:
       - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.24.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: app

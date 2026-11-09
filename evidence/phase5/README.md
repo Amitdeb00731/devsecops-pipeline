@@ -1,11 +1,10 @@
 # Phase 5 evidence: dynamic testing and the binding policy gate
 
 This phase adds the last and most important control in the pipeline: a release gate
-that **fails the build** on a live security finding or a missing approval, rather
-than reporting on it and letting the merge proceed. It is proven the same way as
-every other gate in this build, by showing it block a known-bad input first and then
-pass once the weakness is fixed, so the evidence shows the control working, not
-merely present.
+that **fails the build** on a live security finding, rather than reporting on it and
+letting the merge proceed. It is proven the same way as every other gate in this
+build, by showing it block a known-bad input first and then pass once the weakness is
+fixed, so the evidence shows the control working, not merely present.
 
 ## The control under test
 
@@ -27,15 +26,20 @@ The `release-gate` workflow runs two jobs on every pull request and every push t
   credentials and records the result in `dast-findings.json`. The probe is the
   authoritative finding: a 2xx response is a high-severity broken-access-control
   finding, a 401 or 403 is a pass.
-- **`policy-gate`** assembles the evidence from the dynamic test, the Phase 4
-  signature and the Phase 1 approval control into one document and evaluates it with
-  Conftest against the Rego policy in `policy/release.rego`. The policy denies a
+- **`policy-gate`** reads the dynamic finding from the `dast` job and evaluates it
+  with Conftest against the Rego policy in `policy/release.rego`. The policy denies a
   release on any of three conditions: a high or critical dynamic finding, an unsigned
-  artefact, or an unapproved change. A deny fails the job, so a failing control
+  artefact, or an unapproved change. In this build the dynamic finding is read from a
+  live result; the signature and the approval are enforced earlier, by the `sign` job
+  and by branch protection, and are supplied to the gate as asserted preconditions
+  rather than re-verified inside it. A deny fails the job, so a failing dynamic control
   blocks the release.
 
-The gate therefore binds three of the controls built across this pipeline into a
-single, enforced release decision.
+The gate makes the dynamic finding binding; the signature and approval it also
+requires are enforced upstream in the pipeline and asserted to the gate as
+preconditions. Re-verifying them in the gate against the exact image digest and the
+pull-request review state is recorded as a hardening in
+[`report/controls-mapping.md`](../../report/controls-mapping.md).
 
 ## Before and after, on one pull request
 
@@ -59,8 +63,9 @@ FAIL - gate-input.json - release - release blocked: 1 high or critical dynamic f
 Process completed with exit code 1.
 ```
 
-The signature and approval controls both passed; the single failing control was the
-live finding, and it failed the job. The release was blocked.
+The signature and approval preconditions were asserted true; the single control the
+gate evaluated from a live result, the dynamic finding, failed the job. The release
+was blocked.
 
 ### After: the gate allows the remediated change
 
@@ -116,7 +121,9 @@ accepted passive alerts are in `.zap/rules.tsv`.
 - **OWASP SAMM, Verification, Security Testing:** automated security testing built
   into the delivery pipeline with a defined pass or fail outcome.
 - **Change and release control (SOX-style IT general controls):** the policy gate
-  makes the release decision an enforced, auditable rule. A release cannot proceed
-  unless it is approved, built from a signed artefact and free of high-severity
-  dynamic findings, which is the segregation-of-duties and change-management control
-  a bank's auditors test, expressed as code.
+  makes the release decision an enforced, auditable rule. The policy expresses the
+  release criteria as code: a release must be approved, built from a signed artefact
+  and free of high-severity dynamic findings, which is the segregation-of-duties and
+  change-management control a bank's auditors test. In this build the gate evaluates
+  the dynamic finding directly and takes the signature and approval as preconditions
+  enforced earlier in the pipeline.
