@@ -1,7 +1,7 @@
 # Dependencies pinned to current patched versions. The Phase 3 supply-chain
 # gate (pip-audit and Trivy) scans this file; a known-vulnerable pin here is
 # what the gate was proven against, then cleared by the upgrade below.
-fastapi==0.162.0
+fastapi==0.162.2
 uvicorn==0.54.0
 httpx==0.28.1
 # Remediated (Phase 3): PyJWT was pinned to 2.3.0, which carried known CVEs
