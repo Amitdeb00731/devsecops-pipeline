@@ -38,7 +38,7 @@ jobs:
           exit-code: "0"
       - name: Upload image findings
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-image.sarif
           category: trivy-image
@@ -61,7 +61,7 @@ jobs:
         run: checkov -d iac --framework terraform -o sarif --output-file-path checkov_out || true
       - name: Upload Checkov findings
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov_out/results_sarif.sarif
           category: checkov
@@ -77,7 +77,7 @@ jobs:
           exit-code: "0"
       - name: Upload Trivy config findings
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-config.sarif
           category: trivy-config
